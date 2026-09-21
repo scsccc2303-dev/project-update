@@ -51,14 +51,14 @@ export default async function handler(req, res) {
       });
     }
 
-    const message =
-      "📄 *Document Activity*\\n\\n" +
-      "🔹 *Event:* " + event + "\\n" +
-      "🔹 *Device:* " + device + "\\n" +
-      "🔹 *Country:* " + country + "\\n" +
-      "🔹 *IP:* " + ip + "\\n" +
-      "🔹 *Time:* " + time + "\\n" +
-      "🔹 *Page:* " + page;
+   const message =
+  "Document Activity\n\n" +
+  "Event: " + event + "\n" +
+  "Device: " + device + "\n" +
+  "Country: " + country + "\n" +
+  "IP: " + ip + "\n" +
+  "Time: " + time + "\n" +
+  "Page: " + page;
 
     const telegramURL =
       `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
