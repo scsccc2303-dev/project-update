@@ -1303,7 +1303,7 @@ async function sendAnalyticsEvent(eventName) {
     };
 
     try {
-        await fetch("./track.php", {
+        await fetch("./api/track", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
