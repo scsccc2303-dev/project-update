@@ -1,42 +1,92 @@
 export default async function handler(req, res) {
-// 1. Handle GET (link clicks) and POST requests
-const data = req.method === 'POST' ? req.body : req.query;
+  try {
+    // Only allow GET and POST
+    if (!["GET", "POST"].includes(req.method)) {
+      return res.status(405).json({
+        success: false,
+        error: "Method not allowed"
+      });
+    }
 
-// 2. Setup Token and ID
-const BOT_TOKEN = "8488176892:AAE4pPZvUTaXDgTS7IpR8IJThsqd4Fc1QHE";
-const CHAT_ID = "1326328917";
+    // Get data from POST body or GET query parameters
+    let input = {};
 
-// 3. Get Data
-const event = data.event || "LINK_CLICKED";
-const device = data.device || "Unknown";
-const page = data.page || "Unknown";
-const time = new Date().toLocaleString();
+    if (req.method === "POST") {
+      input = typeof req.body === "object" ? req.body : {};
+    } else {
+      input = req.query || {};
+    }
 
-// 4. Build Message
-const message = ` Document Activity\n\n🔹 Event: ${event}\n🔹 Device: ${device}\n🔹 Time: ${time}\n🔹 Page: ${page}`;
+    const event = input.event || "LINK_CLICKED";
+    const device = input.device || "Unknown";
+    const page =
+      input.page ||
+      req.headers.referer ||
+      "Unknown";
 
-// 5. Send to Telegram - FIX: Added backticks here!
-const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const time =
+      input.time ||
+      new Date().toISOString();
 
-try {
-const response = await fetch(url, {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({
-chat_id: CHAT_ID,
-text: message,
-parse_mode: 'Markdown'
-})
-});
+    // Vercel/proxy headers
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const ip =
+      typeof forwardedFor === "string"
+        ? forwardedFor.split(",")[0].trim()
+        : "Unknown";
 
-const result = await response.json();
+    const country =
+      req.headers["x-vercel-ip-country"] ||
+      req.headers["cf-ipcountry"] ||
+      "Unknown";
 
-if (response.ok) {
-res.status(200).json({ success: true, telegram_response: result });
-} else {
-res.status(response.status).json({ success: false, error: result });
-}
-} catch (error) {
-res.status(500).json({ success: false, error: error.message });
-}
+    // Telegram credentials MUST come from Vercel Environment Variables
+    const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+    if (!BOT_TOKEN || !CHAT_ID) {
+      return res.status(500).json({
+        success: false,
+        error: "Telegram environment variables are not configured."
+      });
+    }
+
+    const message =
+      "📄 *Document Activity*\\n\\n" +
+      "🔹 *Event:* " + event + "\\n" +
+      "🔹 *Device:* " + device + "\\n" +
+      "🔹 *Country:* " + country + "\\n" +
+      "🔹 *IP:* " + ip + "\\n" +
+      "🔹 *Time:* " + time + "\\n" +
+      "🔹 *Page:* " + page;
+
+    const telegramURL =
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+    const telegramResponse = await fetch(telegramURL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: CHAT_ID,
+        text: message,
+        parse_mode: "Markdown"
+      })
+    });
+
+    const telegramData = await telegramResponse.json();
+
+    return res.status(telegramResponse.ok ? 200 : 500).json({
+      success: telegramResponse.ok,
+      http_code: telegramResponse.status,
+      telegram_response: telegramData
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 }
